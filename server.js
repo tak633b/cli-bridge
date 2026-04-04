@@ -14,8 +14,8 @@ const REQUEST_TIMEOUT_MS = parseInt(process.env.CURSOR_BRIDGE_TIMEOUT || '120000
 
 // Map from OpenAI-style model names to Cursor agent --model values
 const MODEL_MAP = {
-  'cursor-composer-2': '',
-  'cursor-composer-2-fast': '',
+  'cursor-composer-2': 'composer-2',
+  'cursor-composer-2-fast': 'composer-2-fast',
   'cursor-sonnet-4': 'sonnet-4',
   'cursor-sonnet-4-thinking': 'sonnet-4-thinking',
   'cursor-gpt-4o': 'gpt-4o',
