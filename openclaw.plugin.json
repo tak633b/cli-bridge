@@ -1,0 +1,37 @@
+{
+  "id": "cursor-bridge",
+  "name": "Cursor Bridge",
+  "description": "OpenAI-compatible proxy for Cursor Agent CLI — use Cursor's subscription as a model provider in openclaw.",
+  "version": "0.1.0",
+  "kind": "integration",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "port": {
+        "type": "number",
+        "default": 18800,
+        "description": "Port for the local proxy server"
+      },
+      "defaultModel": {
+        "type": "string",
+        "default": "",
+        "description": "Default Cursor model (empty = Composer 2)"
+      },
+      "cursorBin": {
+        "type": "string",
+        "default": "cursor",
+        "description": "Path to the cursor CLI binary"
+      },
+      "timeoutMs": {
+        "type": "number",
+        "default": 120000,
+        "description": "Request timeout in milliseconds"
+      }
+    },
+    "additionalProperties": false
+  },
+  "uiHints": {
+    "port": { "label": "Proxy Port", "help": "Local port for the OpenAI-compatible proxy" },
+    "defaultModel": { "label": "Default Model", "help": "Leave empty for Composer 2 (default)" }
+  }
+}
