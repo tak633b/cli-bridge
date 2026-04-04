@@ -8,14 +8,17 @@ const crypto = require('crypto');
 // --- Configuration -----------------------------------------------------------
 
 const PORT = parseInt(process.env.CLAUDE_BRIDGE_PORT || '18801', 10);
-const DEFAULT_MODEL = process.env.CLAUDE_BRIDGE_MODEL || 'sonnet';
+const DEFAULT_MODEL = process.env.CLAUDE_BRIDGE_MODEL || 'claude-sonnet-4-6';
 const CLAUDE_BIN = process.env.CLAUDE_BRIDGE_BIN || 'claude';
-const REQUEST_TIMEOUT_MS = parseInt(process.env.CLAUDE_BRIDGE_TIMEOUT || '120000', 10);
+const REQUEST_TIMEOUT_MS = parseInt(process.env.CLAUDE_BRIDGE_TIMEOUT || '300000', 10);
+const POOL_SIZE = parseInt(process.env.CLAUDE_BRIDGE_POOL_SIZE || '2', 10);
 
 const MODEL_MAP = {
-  'claude-sonnet': 'sonnet',
-  'claude-opus': 'opus',
-  'claude-haiku': 'haiku',
+  'claude-sonnet': 'claude-sonnet-4-6',
+  'claude-opus': 'claude-opus-4-6',
+  'claude-haiku': 'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-6': 'claude-sonnet-4-6',
+  'claude-opus-4-6': 'claude-opus-4-6',
 };
 
 // --- Helpers -----------------------------------------------------------------
@@ -78,27 +81,116 @@ function makeStreamChunk(id, model, delta, finishReason) {
   };
 }
 
-// --- Core: Call claude -p ----------------------------------------------------
+// --- Warm Pool ---------------------------------------------------------------
 
-function callClaude(prompt, model, stream, res) {
-  const id = crypto.randomUUID().slice(0, 12);
-  const resolvedModel = resolveModel(model);
+const pool = [];
 
+function spawnWarmProcess() {
   const args = [
     '-p',
+    '--input-format', 'stream-json',
     '--output-format', 'stream-json',
     '--verbose',
     '--no-session-persistence',
-    '--model', resolvedModel,
-    prompt,
+    '--model', DEFAULT_MODEL,
   ];
-
-  log(`request ${id}: model=${resolvedModel} stream=${stream} prompt_len=${prompt.length}`);
 
   const child = spawn(CLAUDE_BIN, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, NO_COLOR: '1' },
   });
+
+  const entry = { child, ready: false, busy: false, buffer: '' };
+
+  // Wait for hook_response event (signals CLI is initialized and waiting for input)
+  child.stdout.on('data', (chunk) => {
+    if (!entry.ready) {
+      entry.buffer += chunk.toString();
+      const lines = entry.buffer.split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === 'system' && (event.subtype === 'init' || event.subtype === 'hook_response')) {
+            entry.ready = true;
+            entry.buffer = '';
+            log(`pool: warm process ready (PID ${child.pid})`);
+          }
+        } catch { /* skip */ }
+      }
+    }
+  });
+
+  child.on('exit', (code) => {
+    log(`pool: process exited (PID ${child.pid}, code=${code})`);
+    const idx = pool.indexOf(entry);
+    if (idx >= 0) pool.splice(idx, 1);
+    // Replenish pool
+    setTimeout(fillPool, 1000);
+  });
+
+  child.on('error', (err) => {
+    log(`pool: spawn error: ${err.message}`);
+  });
+
+  pool.push(entry);
+  return entry;
+}
+
+function fillPool() {
+  while (pool.length < POOL_SIZE) {
+    spawnWarmProcess();
+  }
+}
+
+function acquireProcess() {
+  // Find a ready, non-busy process
+  const entry = pool.find(e => e.ready && !e.busy);
+  if (entry) {
+    entry.busy = true;
+    // Remove from pool (single-use: claude -p exits after one turn)
+    const idx = pool.indexOf(entry);
+    if (idx >= 0) pool.splice(idx, 1);
+    // Start replenishing
+    setTimeout(fillPool, 100);
+    return entry;
+  }
+  return null;
+}
+
+// --- Core: Call claude -------------------------------------------------------
+
+function callClaude(prompt, model, stream, res) {
+  const id = crypto.randomUUID().slice(0, 12);
+  const resolvedModel = resolveModel(model);
+
+  log(`request ${id}: model=${resolvedModel} stream=${stream} prompt_len=${prompt.length}`);
+
+  // Try warm pool first
+  let entry = acquireProcess();
+  let child;
+
+  if (entry) {
+    log(`request ${id}: using warm process (PID ${entry.child.pid})`);
+    child = entry.child;
+    // Remove the init listener buffer handler, attach new handler
+    child.stdout.removeAllListeners('data');
+  } else {
+    // Cold start fallback
+    log(`request ${id}: cold start (no warm process available)`);
+    const args = [
+      '-p',
+      '--output-format', 'stream-json',
+      '--verbose',
+      '--no-session-persistence',
+      '--model', resolvedModel,
+      prompt,
+    ];
+    child = spawn(CLAUDE_BIN, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, NO_COLOR: '1' },
+    });
+  }
 
   let stdout = '';
   let stderr = '';
@@ -139,11 +231,8 @@ function callClaude(prompt, model, stream, res) {
       if (!line.trim()) continue;
       try {
         const event = JSON.parse(line);
-
-        // Claude CLI stream-json: assistant message with content array
         if (event.type === 'assistant' && event.message?.content) {
-          const parts = event.message.content;
-          for (const part of parts) {
+          for (const part of event.message.content) {
             if (part.type === 'text' && part.text) {
               assistantContent += part.text;
               if (stream && !responded) {
@@ -151,35 +240,23 @@ function callClaude(prompt, model, stream, res) {
               }
             }
           }
-          // Extract usage from assistant message
-          if (event.message.usage) {
-            usage = event.message.usage;
-          }
+          if (event.message.usage) usage = event.message.usage;
         }
-
-        // Result event with final usage
         if (event.type === 'result') {
           if (event.usage) usage = event.usage;
-          if (event.result && !assistantContent) {
-            assistantContent = event.result;
-          }
+          if (event.result && !assistantContent) assistantContent = event.result;
         }
-      } catch {
-        // Skip non-JSON lines
-      }
+      } catch { /* skip */ }
     }
   });
 
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
+  child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
   child.on('close', (code) => {
     clearTimeout(timer);
     if (responded) return;
     responded = true;
 
-    // Process remaining stdout
     if (stdout.trim()) {
       try {
         const event = JSON.parse(stdout);
@@ -224,6 +301,16 @@ function callClaude(prompt, model, stream, res) {
     log(`request ${id}: spawn error: ${err.message}`);
     sendJSON(res, 500, { error: { message: `Failed to spawn claude: ${err.message}`, type: 'spawn_error' } });
   });
+
+  // If using warm process, send the prompt via stdin
+  if (entry) {
+    const msg = JSON.stringify({
+      type: 'user',
+      message: { role: 'user', content: [{ type: 'text', text: prompt }] }
+    });
+    child.stdin.write(msg + '\n');
+    child.stdin.end();
+  }
 }
 
 // --- HTTP Server -------------------------------------------------------------
@@ -257,7 +344,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/health') {
-    return sendJSON(res, 200, { status: 'ok', version: '0.1.0', backend: 'claude-code-cli' });
+    const warmCount = pool.filter(e => e.ready && !e.busy).length;
+    return sendJSON(res, 200, {
+      status: 'ok',
+      version: '0.2.0',
+      backend: 'claude-code-cli',
+      pool: { size: pool.length, warm: warmCount },
+    });
   }
 
   if (req.method === 'GET' && req.url === '/v1/models') {
@@ -290,18 +383,22 @@ const server = http.createServer(async (req, res) => {
   sendJSON(res, 404, { error: { message: 'Not found', type: 'not_found' } });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '::', () => {
   log(`listening on http://127.0.0.1:${PORT}`);
   log(`models: ${Object.keys(MODEL_MAP).join(', ')}`);
   log(`default model: ${DEFAULT_MODEL}`);
-  log(`backend: claude -p (Claude Code CLI)`);
+  log(`pool size: ${POOL_SIZE}`);
+  log(`backend: claude -p (warm pool)`);
+  fillPool();
 });
 
 process.on('SIGTERM', () => {
   log('shutting down');
+  for (const entry of pool) entry.child.kill('SIGTERM');
   server.close(() => process.exit(0));
 });
 process.on('SIGINT', () => {
   log('shutting down');
+  for (const entry of pool) entry.child.kill('SIGTERM');
   server.close(() => process.exit(0));
 });

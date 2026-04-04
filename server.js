@@ -286,7 +286,7 @@ const server = http.createServer(async (req, res) => {
   sendJSON(res, 404, { error: { message: 'Not found', type: 'not_found' } });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '::', () => {
   log(`listening on http://127.0.0.1:${PORT}`);
   log(`models: ${Object.keys(MODEL_MAP).join(', ')}`);
   log(`default model: ${DEFAULT_MODEL || '(composer 2)'}`);

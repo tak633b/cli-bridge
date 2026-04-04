@@ -5,8 +5,8 @@ OpenAI-compatible proxy that routes requests through CLI tools (Cursor Agent, Cl
 ## How it works
 
 ```
-openclaw → localhost:18800 → cursor agent -p  → Cursor subscription
-openclaw → localhost:18801 → claude -p        → Claude Code subscription (fallback)
+openclaw → localhost:18800 → cursor agent -p                        → Cursor subscription
+openclaw → localhost:18801 → claude -p --model claude-sonnet-4-6    → Claude Code (1M context)
 ```
 
 ## Quick Start
@@ -87,10 +87,29 @@ Set the OpenAI-compatible base URL in your agent config:
 }
 ```
 
+## claude-bridge Models
+
+| Model ID | Maps to | Context |
+|----------|---------|---------|
+| `claude-sonnet` | claude-sonnet-4-6 | 1M tokens |
+| `claude-opus` | claude-opus-4-6 | 1M tokens |
+| `claude-haiku` | claude-haiku-4-5-20251001 | 200K tokens |
+
+## claude-bridge Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_BRIDGE_PORT` | `18801` | Proxy listen port |
+| `CLAUDE_BRIDGE_MODEL` | `claude-sonnet-4-6` | Default model |
+| `CLAUDE_BRIDGE_BIN` | `claude` | Path to claude CLI |
+| `CLAUDE_BRIDGE_TIMEOUT` | `300000` | Request timeout (ms) |
+| `CLAUDE_BRIDGE_POOL_SIZE` | `2` | Warm process pool size |
+
 ## Prerequisites
 
 - Node.js >= 18
 - Cursor CLI installed and authenticated (`cursor agent login`)
+- Claude Code CLI installed and authenticated (`claude login`)
 
 ## License
 

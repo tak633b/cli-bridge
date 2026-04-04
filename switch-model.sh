@@ -111,9 +111,9 @@ providers['claude-bridge'] = {
     'models': [
         {
             'id': 'claude-sonnet',
-            'name': 'Claude Sonnet (via CLI)',
+            'name': 'Claude Sonnet 4.6 1M (via CLI)',
             'input': ['text'],
-            'contextWindow': 200000,
+            'contextWindow': 1000000,
             'maxTokens': 16384,
             'compat': {
                 'supportsTools': True,
@@ -123,9 +123,9 @@ providers['claude-bridge'] = {
         },
         {
             'id': 'claude-opus',
-            'name': 'Claude Opus (via CLI)',
+            'name': 'Claude Opus 4.6 1M (via CLI)',
             'input': ['text'],
-            'contextWindow': 200000,
+            'contextWindow': 1000000,
             'maxTokens': 16384,
             'compat': {
                 'supportsTools': True,
@@ -135,7 +135,7 @@ providers['claude-bridge'] = {
         },
         {
             'id': 'claude-haiku',
-            'name': 'Claude Haiku (via CLI)',
+            'name': 'Claude Haiku 4.5 (via CLI)',
             'input': ['text'],
             'contextWindow': 200000,
             'maxTokens': 16384,
