@@ -85,7 +85,7 @@ with open('$CONFIG', 'w') as f:
 print('Switched to cursor-bridge/cursor-composer-2-fast')
 print('Fallback: anthropic/claude-haiku-4-5')
 print()
-print('Make sure cursor-bridge is running: node ~/cursor-bridge/server.js')
+print('Make sure cursor-bridge is running: node ~/cli-bridge/server.js')
 print('Then restart gateway: openclaw gateway start')
 "
     ;;
@@ -173,7 +173,7 @@ with open('$CONFIG', 'w') as f:
 print('Switched to claude-bridge/claude-sonnet (via Claude Code CLI)')
 print('Fallback: claude-bridge/claude-haiku')
 print()
-print('Make sure claude-bridge is running: node ~/cursor-bridge/claude-server.js')
+print('Make sure claude-bridge is running: node ~/cli-bridge/claude-server.js')
 print('Then restart gateway: openclaw gateway start')
 "
     ;;

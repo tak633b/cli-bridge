@@ -1,7 +1,7 @@
 {
-  "name": "cursor-bridge",
+  "name": "cli-bridge",
   "version": "0.1.0",
-  "description": "OpenAI-compatible proxy that routes requests through Cursor Agent CLI, enabling openclaw to use Cursor's subscription plan.",
+  "description": "OpenAI-compatible proxy for Cursor Agent CLI and Claude Code CLI, enabling openclaw to use subscription plans.",
   "main": "index.js",
   "bin": {
     "cursor-bridge": "./server.js"
@@ -10,7 +10,12 @@
     "start": "node server.js",
     "test": "node test.js"
   },
-  "keywords": ["cursor", "openclaw", "proxy", "openai-compatible"],
+  "keywords": [
+    "cursor",
+    "openclaw",
+    "proxy",
+    "openai-compatible"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

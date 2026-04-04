@@ -1,7 +1,7 @@
 {
-  "id": "cursor-bridge",
-  "name": "Cursor Bridge",
-  "description": "OpenAI-compatible proxy for Cursor Agent CLI — use Cursor's subscription as a model provider in openclaw.",
+  "id": "cli-bridge",
+  "name": "CLI Bridge",
+  "description": "OpenAI-compatible proxy for Cursor Agent CLI and Claude Code CLI.",
   "version": "0.1.0",
   "kind": "integration",
   "configSchema": {
@@ -31,7 +31,13 @@
     "additionalProperties": false
   },
   "uiHints": {
-    "port": { "label": "Proxy Port", "help": "Local port for the OpenAI-compatible proxy" },
-    "defaultModel": { "label": "Default Model", "help": "Leave empty for Composer 2 (default)" }
+    "port": {
+      "label": "Proxy Port",
+      "help": "Local port for the OpenAI-compatible proxy"
+    },
+    "defaultModel": {
+      "label": "Default Model",
+      "help": "Leave empty for Composer 2 (default)"
+    }
   }
 }

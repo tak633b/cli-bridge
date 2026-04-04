@@ -1,12 +1,12 @@
-# cursor-bridge
+# cli-bridge
 
-OpenAI-compatible proxy that routes requests through Cursor Agent CLI.
-Use Cursor's subscription plan as a model provider in openclaw.
+OpenAI-compatible proxy that routes requests through CLI tools (Cursor Agent, Claude Code), enabling openclaw to use subscription plans as model providers.
 
 ## How it works
 
 ```
-openclaw / any client → http://127.0.0.1:18800/v1/chat/completions → cursor agent -p → Cursor subscription
+openclaw → localhost:18800 → cursor agent -p  → Cursor subscription
+openclaw → localhost:18801 → claude -p        → Claude Code subscription (fallback)
 ```
 
 ## Quick Start
