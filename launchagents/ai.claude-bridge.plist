@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/node</string>
-        <string>/Users/takashihasumura/cursor-bridge/claude-server.js</string>
+        <string>/Users/takashihasumura/cli-bridge/claude-server.js</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -16,7 +16,7 @@
         <key>NO_COLOR</key>
         <string>1</string>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/Users/takashihasumura/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
