@@ -1,12 +1,13 @@
 #!/bin/bash
 # cursor-bridge model switcher for openclaw
 # Usage:
-#   ./switch-model.sh cursor    — switch to Cursor Bridge
-#   ./switch-model.sh anthropic — switch back to Anthropic OAuth
+#   ./switch-model.sh cursor    — switch to Cursor Bridge (port 18800)
+#   ./switch-model.sh claude    — switch to Claude Code CLI bridge (port 18801)
+#   ./switch-model.sh anthropic — switch back to Anthropic OAuth (direct)
 #   ./switch-model.sh status    — show current config
 #
-# Strategy: Use models.providers to register cursor-bridge as a custom
-# OpenAI-completions provider with its own baseUrl.
+# Strategy: Use models.providers to register bridge servers as custom
+# OpenAI-completions providers with their own baseUrl.
 
 set -euo pipefail
 CONFIG="$HOME/.openclaw/openclaw.json"
@@ -89,6 +90,94 @@ print('Then restart gateway: openclaw gateway start')
 "
     ;;
 
+  claude)
+    mkdir -p "$BACKUP_DIR"
+    cp "$CONFIG" "$BACKUP_DIR/openclaw.json.pre-switch"
+    echo "Backup saved to $BACKUP_DIR/openclaw.json.pre-switch"
+
+    python3 -c "
+import json
+
+with open('$CONFIG') as f:
+    d = json.load(f)
+
+# Add claude-bridge to models.providers
+models_section = d.setdefault('models', {})
+providers = models_section.setdefault('providers', {})
+providers['claude-bridge'] = {
+    'baseUrl': 'http://127.0.0.1:18801/v1',
+    'apiKey': 'not-needed',
+    'api': 'openai-completions',
+    'models': [
+        {
+            'id': 'claude-sonnet',
+            'name': 'Claude Sonnet (via CLI)',
+            'input': ['text'],
+            'contextWindow': 200000,
+            'maxTokens': 16384,
+            'compat': {
+                'supportsTools': True,
+                'supportsUsageInStreaming': True,
+                'maxTokensField': 'max_tokens'
+            }
+        },
+        {
+            'id': 'claude-opus',
+            'name': 'Claude Opus (via CLI)',
+            'input': ['text'],
+            'contextWindow': 200000,
+            'maxTokens': 16384,
+            'compat': {
+                'supportsTools': True,
+                'supportsUsageInStreaming': True,
+                'maxTokensField': 'max_tokens'
+            }
+        },
+        {
+            'id': 'claude-haiku',
+            'name': 'Claude Haiku (via CLI)',
+            'input': ['text'],
+            'contextWindow': 200000,
+            'maxTokens': 16384,
+            'compat': {
+                'supportsTools': True,
+                'supportsUsageInStreaming': True,
+                'maxTokensField': 'max_tokens'
+            }
+        }
+    ]
+}
+
+# Switch default model
+defaults = d['agents']['defaults']
+defaults['model'] = {
+    'primary': 'claude-bridge/claude-sonnet',
+    'fallbacks': ['claude-bridge/claude-haiku']
+}
+
+# Add to agent models
+agent_models = defaults.setdefault('models', {})
+agent_models['claude-bridge/claude-sonnet'] = {
+    'alias': 'cc-sonnet',
+    'params': {}
+}
+
+# Update mini-bal
+for agent in d['agents']['list']:
+    if agent['id'] == 'mini-bal':
+        agent['model'] = {'primary': 'claude-bridge/claude-sonnet'}
+
+with open('$CONFIG', 'w') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+
+print('Switched to claude-bridge/claude-sonnet (via Claude Code CLI)')
+print('Fallback: claude-bridge/claude-haiku')
+print()
+print('Make sure claude-bridge is running: node ~/cursor-bridge/claude-server.js')
+print('Then restart gateway: openclaw gateway start')
+"
+    ;;
+
   anthropic)
     if [ -f "$BACKUP_DIR/openclaw.json.pre-switch" ]; then
       cp "$BACKUP_DIR/openclaw.json.pre-switch" "$CONFIG"
@@ -109,8 +198,10 @@ defaults['model'] = {
 
 models = defaults.get('models', {})
 models.pop('cursor-bridge/cursor-composer-2-fast', None)
+models.pop('claude-bridge/claude-sonnet', None)
 
 d.get('models', {}).get('providers', {}).pop('cursor-bridge', None)
+d.get('models', {}).get('providers', {}).pop('claude-bridge', None)
 
 for agent in d['agents']['list']:
     if agent['id'] == 'mini-bal':
@@ -138,19 +229,23 @@ model = defaults.get('model', {})
 providers = d.get('models', {}).get('providers', {})
 
 primary = model.get('primary', '(not set)')
-is_cursor = 'cursor-bridge' in primary
+if 'cursor-bridge' in primary:
+    mode = 'CURSOR BRIDGE'
+elif 'claude-bridge' in primary:
+    mode = 'CLAUDE CODE CLI'
+else:
+    mode = 'ANTHROPIC (direct)'
 
 print('=== Model Config ===')
 print(f'Primary: {primary}')
 print(f'Fallbacks: {model.get(\"fallbacks\", [])}')
 print()
 print(f'=== Routing ===')
-print(f'Mode: {\"CURSOR BRIDGE\" if is_cursor else \"ANTHROPIC (direct)\"}')
-if 'cursor-bridge' in providers:
-    p = providers['cursor-bridge']
-    print(f'baseUrl: {p.get(\"baseUrl\")}')
-    print(f'api: {p.get(\"api\")}')
-    print(f'models: {[m[\"id\"] for m in p.get(\"models\", [])]}')
+print(f'Mode: {mode}')
+for name in ['cursor-bridge', 'claude-bridge']:
+    if name in providers:
+        p = providers[name]
+        print(f'{name}: {p.get(\"baseUrl\")} ({[m[\"id\"] for m in p.get(\"models\", [])]})')
 print()
 print('=== Agents ===')
 for agent in d.get('agents', {}).get('list', []):
@@ -162,7 +257,7 @@ print(f'Backup: {\"available\" if backup else \"none\"}')
     ;;
 
   *)
-    echo "Usage: $0 {cursor|anthropic|status}"
+    echo "Usage: $0 {cursor|claude|anthropic|status}"
     exit 1
     ;;
 esac
