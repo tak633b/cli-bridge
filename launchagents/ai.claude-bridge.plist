@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/node</string>
-        <string>/Users/takashihasumura/cli-bridge/claude-server.js</string>
+        <string>/Users/YOUR_USERNAME/cli-bridge/claude-server.js</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -16,15 +16,15 @@
         <key>NO_COLOR</key>
         <string>1</string>
         <key>PATH</key>
-        <string>/Users/takashihasumura/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/Users/YOUR_USERNAME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/takashihasumura/.openclaw/logs/claude-bridge.log</string>
+    <string>/Users/YOUR_USERNAME/.openclaw/logs/claude-bridge.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/takashihasumura/.openclaw/logs/claude-bridge.err.log</string>
+    <string>/Users/YOUR_USERNAME/.openclaw/logs/claude-bridge.err.log</string>
 </dict>
 </plist>
