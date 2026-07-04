@@ -4,6 +4,7 @@
 const http = require('http');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
+const { hostIsLoopback, tokensEqual } = require('./security');
 
 // --- Configuration -----------------------------------------------------------
 
@@ -344,10 +345,15 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  // Host-header allowlist — enforced regardless of API_KEY.
+  if (req.url !== '/health' && !hostIsLoopback(req.headers['host'])) {
+    return sendJSON(res, 403, { error: { message: 'Forbidden: non-loopback Host', type: 'invalid_request' } });
+  }
+
   if (API_KEY && req.url !== '/health') {
     const auth = req.headers['authorization'] || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== API_KEY) {
+    if (!tokensEqual(token, API_KEY)) {
       return sendJSON(res, 401, { error: { message: 'Unauthorized', type: 'invalid_request' } });
     }
   }
@@ -398,6 +404,9 @@ server.listen(PORT, '127.0.0.1', () => {
   log(`default model: ${DEFAULT_MODEL}`);
   log(`pool size: ${POOL_SIZE}`);
   log(`backend: claude -p (warm pool)`);
+  if (!API_KEY) {
+    log('WARN: CLAUDE_BRIDGE_API_KEY unset — Host-header allowlist is the only auth.');
+  }
   fillPool();
 });
 
