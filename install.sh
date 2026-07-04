@@ -26,7 +26,7 @@ install() {
     CLAUDE_BIN_DIR=$(dirname "$CLAUDE_BIN")
     sed \
       -e "s|/usr/local/bin/node|${NODE_BIN}|g" \
-      -e "s|/Users/takashihasumura|${HOME_DIR}|g" \
+      -e "s|/Users/YOUR_USERNAME|${HOME_DIR}|g" \
       -e "s|<string>/opt/homebrew/bin|<string>${CLAUDE_BIN_DIR}:/opt/homebrew/bin|g" \
       "$src" > "$LAUNCH_DIR/$plist"
 
