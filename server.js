@@ -11,6 +11,7 @@ const PORT = parseInt(process.env.CURSOR_BRIDGE_PORT || '18800', 10);
 const DEFAULT_MODEL = process.env.CURSOR_BRIDGE_MODEL || '';
 const CURSOR_BIN = process.env.CURSOR_BRIDGE_BIN || 'cursor';
 const REQUEST_TIMEOUT_MS = parseInt(process.env.CURSOR_BRIDGE_TIMEOUT || '120000', 10);
+const API_KEY = process.env.CURSOR_BRIDGE_API_KEY || '';
 
 // Map from OpenAI-style model names to Cursor agent --model values
 const MODEL_MAP = {
@@ -249,6 +250,14 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  if (API_KEY && req.url !== '/health') {
+    const auth = req.headers['authorization'] || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (token !== API_KEY) {
+      return sendJSON(res, 401, { error: { message: 'Unauthorized', type: 'invalid_request' } });
+    }
+  }
+
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     return sendJSON(res, 200, { status: 'ok', version: '0.1.0' });
@@ -286,7 +295,7 @@ const server = http.createServer(async (req, res) => {
   sendJSON(res, 404, { error: { message: 'Not found', type: 'not_found' } });
 });
 
-server.listen(PORT, '::', () => {
+server.listen(PORT, '127.0.0.1', () => {
   log(`listening on http://127.0.0.1:${PORT}`);
   log(`models: ${Object.keys(MODEL_MAP).join(', ')}`);
   log(`default model: ${DEFAULT_MODEL || '(composer 2)'}`);

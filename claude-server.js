@@ -12,6 +12,7 @@ const DEFAULT_MODEL = process.env.CLAUDE_BRIDGE_MODEL || 'claude-sonnet-4-6';
 const CLAUDE_BIN = process.env.CLAUDE_BRIDGE_BIN || 'claude';
 const REQUEST_TIMEOUT_MS = parseInt(process.env.CLAUDE_BRIDGE_TIMEOUT || '300000', 10);
 const POOL_SIZE = parseInt(process.env.CLAUDE_BRIDGE_POOL_SIZE || '2', 10);
+const API_KEY = process.env.CLAUDE_BRIDGE_API_KEY || '';
 
 const MODEL_MAP = {
   'claude-sonnet': 'claude-sonnet-4-6',
@@ -343,6 +344,14 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  if (API_KEY && req.url !== '/health') {
+    const auth = req.headers['authorization'] || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (token !== API_KEY) {
+      return sendJSON(res, 401, { error: { message: 'Unauthorized', type: 'invalid_request' } });
+    }
+  }
+
   if (req.method === 'GET' && req.url === '/health') {
     const warmCount = pool.filter(e => e.ready && !e.busy).length;
     return sendJSON(res, 200, {
@@ -383,7 +392,7 @@ const server = http.createServer(async (req, res) => {
   sendJSON(res, 404, { error: { message: 'Not found', type: 'not_found' } });
 });
 
-server.listen(PORT, '::', () => {
+server.listen(PORT, '127.0.0.1', () => {
   log(`listening on http://127.0.0.1:${PORT}`);
   log(`models: ${Object.keys(MODEL_MAP).join(', ')}`);
   log(`default model: ${DEFAULT_MODEL}`);
