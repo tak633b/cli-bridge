@@ -49,7 +49,7 @@ curl http://127.0.0.1:18800/v1/chat/completions \
 
 ```bash
 # From the repo directory
-openclaw plugins install --source path --source-path /path/to/cursor-bridge
+openclaw plugins install --source path --source-path /path/to/cli-bridge
 ```
 
 ### Configure (`openclaw.json`)
